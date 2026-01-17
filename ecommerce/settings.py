@@ -19,11 +19,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / '.env')
 
-# Para verificar que carga
-print("DB_NAME =", os.getenv("DB_NAME"))
-print("DB_USER =", os.getenv("DB_USER"))
-print("DB_PASSWORD =", os.getenv("DB_PASSWORD"))
-
 ENV = os.getenv('DJANGO_ENV', 'development')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
