@@ -19,6 +19,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / '.env')
 
+# Para verificar que carga
+print("DB_NAME =", os.getenv("DB_NAME"))
+print("DB_USER =", os.getenv("DB_USER"))
+print("DB_PASSWORD =", os.getenv("DB_PASSWORD"))
+
 ENV = os.getenv('DJANGO_ENV', 'development')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -43,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_spectacular',
     'ecommerce'
 ]
 
@@ -88,6 +94,17 @@ DATABASES = {
         'HOST': os.getenv('DB_HOST'),
         'PORT': os.getenv('DB_PORT'),
     }
+}
+
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Ecommerce API',
+    'DESCRIPTION': 'API del sistema Ecommerce',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }
 
 
