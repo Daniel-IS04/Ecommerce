@@ -9,17 +9,22 @@ class RegisterSerializer(serializers.Serializer):
     last_name = serializers.CharField(required=False, allow_blank=True)
     email = serializers.EmailField()
     password = serializers.CharField(write_only= True)
+    password2 = serializers.CharField(write_only= True)
     phone_number = serializers.CharField(required=False, allow_blank=True)
 
     #Valida que si la contraseña no es una facil [Naira(moneda_local)]
     def validate_password(self, value):
+        if value["password"] != value["password2"]:
+            raise serializers.ValidationError({"password2": "Las contraseñas no coinciden."})
         validate_password(value)
         return value
     
     def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Este eamil ya esta registrado <Me gusta Lizzy UwU>")
-        return value
+        email = value.lower().strip()
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("Este email ya está registrado.")
+        return email
+
 
     def create(self, validated_data):
         email = validated_data["email"].lower().strip()
@@ -27,7 +32,9 @@ class RegisterSerializer(serializers.Serializer):
         user = User.objects.create_user(
             username=email,
             email=email,
+            #se usa [] para poder obtener datos si o si 
             password=validated_data["password"],
+            # .get pra datos no olbigatorios => si no hay es : "..."
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", ""),     
         )
