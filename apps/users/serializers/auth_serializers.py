@@ -5,8 +5,14 @@ from rest_framework import serializers
 User = get_user_model()
 
 class RegisterSerializer(serializers.Serializer):
-    first_name = serializers.CharField(required=False, allow_blank=True)
-    last_name = serializers.CharField(required=False, allow_blank=True)
+    first_name = serializers.CharField(required=True, allow_blank=False,error_messages={
+        "blank": "Rellena el nombre ctmr, no pude estar vacio",
+        "required": "Rellena mierda",
+    })
+    last_name = serializers.CharField(required=True, allow_blank=False,error_messages={
+        "blank": "Rellena el nombre ctmr, no pude estar vacio",
+        "required": "Rellena mierda",
+    })
     email = serializers.EmailField()
     password = serializers.CharField(write_only= True)
     password2 = serializers.CharField(write_only= True)
@@ -14,10 +20,14 @@ class RegisterSerializer(serializers.Serializer):
 
     #Valida que si la contraseña no es una facil [Naira(moneda_local)]
     def validate_password(self, value):
-        if value["password"] != value["password2"]:
-            raise serializers.ValidationError({"password2": "Las contraseñas no coinciden."})
         validate_password(value)
         return value
+
+    def validate(self, data):
+        if data["password"] != data["password2"]:
+            raise serializers.ValidationError({"password2": "Las contraseñas no coinciden."})
+        return data
+
     
     def validate_email(self, value):
         email = value.lower().strip()
