@@ -135,6 +135,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+## el original en AUTH_USER_MODEL  = auth.user
 AUTH_USER_MODEL = 'users.User'
 
 # Internationalization

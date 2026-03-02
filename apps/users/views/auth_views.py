@@ -1,11 +1,11 @@
 from rest_framework import status
-from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.generics import GenericAPIView
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from ..serializers.auth_serializers import RegisterSerializer, LoginSerializer
 from ..serializers.user_serializers import UserSerializer
+
 
 class RegisterView(GenericAPIView):
     serializer_class = RegisterSerializer
@@ -21,7 +21,6 @@ class RegisterView(GenericAPIView):
         )
 
 
-    
 class LoginView(GenericAPIView):
     serializer_class = LoginSerializer
 
@@ -29,15 +28,16 @@ class LoginView(GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        # OJO: aquí tienes un bug en tu serializer
         user = serializer.validated_data["user"]
-        token, _ = Token.objects.get_or_create(user=user)
+
+        refresh = RefreshToken.for_user(user)
 
         return Response(
             {
-                "token": token.key,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
                 "user": UserSerializer(user).data
             },
             status=status.HTTP_200_OK
         )
-
-    

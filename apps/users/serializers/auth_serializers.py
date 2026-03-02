@@ -8,7 +8,7 @@ class RegisterSerializer(serializers.Serializer):
     first_name = serializers.CharField(required=True, allow_blank=False,error_messages={
         "blank": "Rellena el nombre ctmr, no pude estar vacio",
         "required": "Rellena mierda",
-    })
+    })  
     last_name = serializers.CharField(required=True, allow_blank=False,error_messages={
         "blank": "Rellena el nombre ctmr, no pude estar vacio",
         "required": "Rellena mierda",
@@ -28,6 +28,10 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError({"password2": "Las contraseñas no coinciden."})
         return data
 
+    def validate_phone_number(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("Todos tienen que ser numeros")
+        return value
     
     def validate_email(self, value):
         email = value.lower().strip()
@@ -75,5 +79,5 @@ class LoginSerializer(serializers.Serializer):
         if not user.check_password(password):
             raise serializers.ValidationError("Credenciales invalidas. ")
         
-        attrs["users"] = user
+        attrs["user"] = user
         return attrs
