@@ -1,10 +1,11 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.password_validation import validate_password 
 from rest_framework import serializers
 
 User = get_user_model()
 
-class RegisterSerializer(serializers.Serializer):
+class RegisterSerializer(serializers.ModelSerializer):
+
     first_name = serializers.CharField(required=True, allow_blank=False,error_messages={
         "blank": "Rellena el nombre ctmr, no pude estar vacio",
         "required": "Rellena mierda",
@@ -13,47 +14,66 @@ class RegisterSerializer(serializers.Serializer):
         "blank": "Rellena el nombre ctmr, no pude estar vacio",
         "required": "Rellena mierda",
     })
-    email = serializers.EmailField()
+
     password = serializers.CharField(write_only= True)
     password2 = serializers.CharField(write_only= True)
-    phone_number = serializers.CharField(required=False, allow_blank=True)
+    class Meta:
+        model = User
+        # es lo que se nos envio de la request
+        fields = (
+            "first_name",
+            "last_name",
+            "email",
+            "dni",
+            "phone_number",
+            "birth_date",
+            "password",
+            "password2",
+            
+        )
+    def validate_email(self, value):
+        email = value.lower().strip()
+        if User.objects.filter(email=email).exists():
+            raise serializers.ValidationError("Este email ya esta registrado")
+        return email
+    
+    def validate_dni(self, value: str):
+        dni = value
+        if(len(dni)== 8 and dni.isdigit()):
+            if( not User.objects.filter(dni=dni).exists()):
+                return dni    
+            raise serializers.ValidationError("Este DNI ya esta registrado")
+        raise serializers.ValidationError("Este valor no cumple con los requisitos")
 
-    #Valida que si la contraseña no es una facil [Naira(moneda_local)]
     def validate_password(self, value):
         validate_password(value)
         return value
-
-    def validate(self, data):
-        if data["password"] != data["password2"]:
-            raise serializers.ValidationError({"password2": "Las contraseñas no coinciden."})
-        return data
-
-    def validate_phone_number(self, value):
-        if not value.isdigit():
-            raise serializers.ValidationError("Todos tienen que ser numeros")
-        return value
     
-    def validate_email(self, value):
-        email = value.lower().strip()
-        if User.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError("Este email ya está registrado.")
-        return email
-
+    def validate_phone_number(self, value):
+        if value in (None, ""):
+            return value
+        
+        if not (value.isdigit() and len(value)) == 9:
+            raise serializers.ValidationError("No cumple con las condiciones de un numero peruano")
+        return value
 
     def create(self, validated_data):
-        email = validated_data["email"].lower().strip()
+        # 1) saca password2
+        validated_data.pop("password2")
 
-        user = User.objects.create_user(
-            username=email,
-            email=email,
-            #se usa [] para poder obtener datos si o si 
-            password=validated_data["password"],
-            # .get pra datos no olbigatorios => si no hay es : "..."
-            first_name=validated_data.get("first_name", ""),
-            last_name=validated_data.get("last_name", ""),     
-        )
-        
-        user.phone_number = validated_data.get("phone_number", "")
+        # 2) saca password real
+        raw_password = validated_data.pop("password")
+
+        # 3) normaliza email
+        email = validated_data["email"].lower().strip()
+        validated_data["email"] = email
+
+        # 4) si tu regla es username=email:
+        validated_data["username"] = email
+
+        # 5) crea usuario sin password plano
+        user = User(**validated_data)
+        user.set_password(raw_password)
         user.save()
         return user
 
@@ -70,8 +90,6 @@ class LoginSerializer(serializers.Serializer):
         except User.DoesNotExist:
             raise serializers.ValidationError("Credenciales inválidas.")
         
-        if user.is_deleted:
-            raise serializers.ValidationError("Usuario Elimnado.")
         
         if not user.is_active:
             raise serializers.ValidationError("Usuario inactivo.")

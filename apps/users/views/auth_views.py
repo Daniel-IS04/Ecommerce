@@ -8,14 +8,17 @@ from ..serializers.user_serializers import UserSerializer
 
 
 class RegisterView(GenericAPIView):
+    #LIB -> establecemos una instancia del serializer
     serializer_class = RegisterSerializer
 
     def post(self, request):
+        #                     LIB
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        # serializer ya me devuelve un JSON y validado
+        serializer.is_valid(raise_exception=True) # vemos que todo salga bien
+        user = serializer.save() # guardamos 
 
-        return Response(
+        return Response( # devolvemos la respeusta
             UserSerializer(user).data,
             status=status.HTTP_201_CREATED
         )

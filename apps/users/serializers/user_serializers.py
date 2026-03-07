@@ -14,7 +14,6 @@ class UserSerializer (serializers.ModelSerializer):
             "phone_number",
             "role",
             "is_active",
-            "is_deleted",
             "created_at",
             "updated_at",
         ]

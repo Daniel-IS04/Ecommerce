@@ -43,5 +43,5 @@ urlpatterns = [
     
     # Apps URLs
     path('api/', include('apps.products.urls')),
-    path('api/users', include('apps.users.urls')),
+    path('api/users/', include('apps.users.urls')),
 ]
