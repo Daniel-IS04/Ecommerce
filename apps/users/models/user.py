@@ -15,6 +15,7 @@ class User(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    # podemos mejorar con la herencia
     class Meta:
         db_table = "users"
     def __str__(self):
