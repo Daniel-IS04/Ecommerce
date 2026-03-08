@@ -16,6 +16,7 @@ class User(AbstractUser):
     updated_at = models.DateTimeField(auto_now=True)
     
     # podemos mejorar con la herencia
+    # Una sugerencia mas 
     class Meta:
         db_table = "users"
     def __str__(self):
