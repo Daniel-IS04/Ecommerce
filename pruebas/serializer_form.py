@@ -93,7 +93,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         - password y password2 deben coincidir
         """
         if attrs["password"] != attrs["password2"]:
-            raise serializers.ValidationError({"password2": "Las contraseñas no coinciden."})
+            raise serializers.ValidationError(
+                {"password2": "Las contraseñas no coinciden."}
+            )
         return attrs
 
     # ---------- CREACIÓN (create) ----------
@@ -130,3 +132,4 @@ class RegisterSerializer(serializers.ModelSerializer):
         # 7) Guardar en DB
         user.save()
         return user
+

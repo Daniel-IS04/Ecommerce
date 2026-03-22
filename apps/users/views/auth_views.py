@@ -2,104 +2,87 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
-from rest_framework_simplejwt.tokens import RefreshToken
-from ..serializers.auth_serializers import RegisterSerializer, LoginSerializer
-from ..serializers.user_serializers import UserSerializer
-from drf_spectacular.utils import extend_schema
-from security.jwt import JWTService
-from datetime import datetime, timedelta
-from ..models.refresh_token import RefreshToken
 from rest_framework.permissions import AllowAny
+from drf_spectacular.utils import extend_schema
+
+# Importaciones de SimpleJWT
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+
+# Tus Serializers
+from ..serializers.auth_serializers import (
+    RegisterSerializer,
+    MyTokenObtainPairSerializer,
+)
 
 
 class RegisterView(GenericAPIView):
     permission_classes = [AllowAny]
-    # LIB -> establecemos una instancia del serializer
     serializer_class = RegisterSerializer
 
     def post(self, request):
-        #                     LIB
         serializer = self.get_serializer(data=request.data)
-        # serializer ya me devuelve un JSON y validado
-        if not serializer.is_valid(raise_exception=True):
-            # Response(data=None, status=None, headers=None, content_type=None)
+        if not serializer.is_valid():
             return Response(
                 data={
                     "errors": serializer.errors,
-                    "messages": "No pudo registrar correctamente",
+                    "messages": "No se pudo registrar el usuario por errores de validación.",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        user = serializer.save()  # guardamos
-
-        return Response(  # devolvemos la respeusta
-            RegisterSerializer(user).data, status=status.HTTP_201_CREATED
-        )
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class LoginView(APIView):
+class LoginView(TokenObtainPairView):
+    """
+    Sustituye a tu antigua LoginView.
+    Usa el serializer personalizado para meter datos en el payload.
+    """
+
     permission_classes = [AllowAny]
+    serializer_class = MyTokenObtainPairSerializer
 
-    @extend_schema(request=LoginSerializer, responses=LoginSerializer)
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
 
-        serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as e:
+            raise InvalidToken(e.args[0])
 
-        access_token = JWTService.generate_token(user)
-        refresh_token = JWTService.generate_refresh_token()
+        user = serializer.user
+        tokens = serializer.validated_data
 
-        expires = datetime.utcnow() + timedelta(days=7)
-        RefreshToken.objects.create(user=user, token=refresh_token, expires_at=expires)
+        response_data = {
+            "user": {
+                "first_name": user.first_name,
+                "email": user.email,
+                "role": getattr(user, "role", "user"),
+            },
+            "success": True,
+            "token": tokens["access"],  # Access Token para localStorage
+        }
 
-        user_return = UserSerializer(user).data
-        response = Response(
-            {"name": user_return, "success": True, "token": access_token},
-            status=status.HTTP_200_OK,
-        )
+        response = Response(response_data, status=status.HTTP_200_OK)
 
+        # Seteamos el Refresh Token en la Cookie HttpOnly
+        # El max_age debería coincidir con tu REFRESH_TOKEN_LIFETIME de settings
         response.set_cookie(
             key="refresh_token",
-            value=refresh_token,
-            httponly=True,  # Impide que JS lea la cookie (Seguridad extra)
-            secure=True,  # Ponlo en False si estás probando en localhost sin HTTPS
-            samesite="Lax",  # Protege contra ataques CSRF
-            max_age=7 * 24 * 60 * 60,  # Tiempo de vida en segundos (7 días)
+            value=tokens["refresh"],
+            httponly=True,
+            secure=False,  # Cambiar a True en producción (HTTPS)
+            samesite="Lax",
+            max_age=24 * 60 * 60,  # 1 día
+            path="/api/auth/refresh/",  # Seguridad: solo se envía a la ruta de refresh
         )
+
         return response
 
 
-# esto me dio flojera hacer ...xd
-class TokenRefreshView(APIView):
-    def post(self, request):
-        # Leemos la cookie que el navegador envía automáticamente
-        refresh_token_str = request.COOKIES.get("refresh_token")
-
-        if not refresh_token_str:
-            return Response(
-                {"error": "No se encontró el refresh token"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-        try:
-            # Buscamos el token en la base de datos
-            token_obj = RefreshToken.objects.get(token=refresh_token_str)
-
-            if not token_obj.is_valid():
-                return Response(
-                    {"error": "Token expirado o revocado"},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
-
-            # Todo está bien, le damos un nuevo access token de 15 minutos
-            new_access_token = JWTService.generate_token(token_obj.user)
-
-            return Response(
-                {"success": True, "token": new_access_token}, status=status.HTTP_200_OK
-            )
-
-        except RefreshToken.DoesNotExist:
-            return Response(
-                {"error": "Token inválido"}, status=status.HTTP_401_UNAUTHORIZED
-            )
+# Ya no necesitas implementar la lógica manual.
+# Solo heredas y SimpleJWT lee la cookie (si configuraste AUTH_COOKIE en settings)
+class CustomTokenRefreshView(TokenRefreshView):
+    permission_classes = [AllowAny]
+    # Si en settings configuraste AUTH_COOKIE, esta vista buscará el refresh ahí automáticamente.

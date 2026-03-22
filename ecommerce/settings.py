@@ -14,6 +14,8 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+from datetime import timedelta
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -50,6 +52,7 @@ INSTALLED_APPS = [
     "apps.users",
     "apps.products",
     "corsheaders",
+    "rest_framework_simplejwt",
 ]
 
 MIDDLEWARE = [
@@ -107,12 +110,9 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "security.authentication.CustomJWTAuthentication",  # Cambia 'security' por el nombre real de tu app si es diferente
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     # Tu 'cadenero' global (opcional, si quieres que toda la API esté protegida)
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
-    ],
 }
 
 SPECTACULAR_SETTINGS = {
@@ -149,12 +149,55 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
+# Asegúrate de tener 'corsheaders' en INSTALLED_APPS
+# y 'corsheaders.middleware.CorsMiddleware' lo más arriba posible en MIDDLEWARE
 
+# 1. Elimina o comenta esta línea si la tienes:
+# CORS_ALLOW_ALL_ORIGINS = True  <-- ESTO DEBE MORIR
+
+# 2. Agrega la lista estricta de orígenes permitidos (Tu Angular)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:4200",
+    "http://127.0.0.1:4200",
+]
+
+# 3. Habilita el paso de cookies y cabeceras de autorización
+CORS_ALLOW_CREDENTIALS = True
+
+# (Opcional pero recomendado para DRF) Confirma que permites las cabeceras estándar
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
 ## el original en AUTH_USER_MODEL  = auth.user
 AUTH_USER_MODEL = "users.User"
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
+
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": True,  # Seguridad extra: te da un refresh nuevo cada vez
+    "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    # Esto es lo que querías: manejar la cookie de forma automática
+    "AUTH_COOKIE": "refresh_token",  # Nombre de la cookie
+    "AUTH_COOKIE_DOMAIN": None,  # El dominio de tu api
+    "AUTH_COOKIE_SECURE": False,  # True en producción (HTTPS)
+    "AUTH_COOKIE_HTTP_ONLY": True,  # JavaScript no puede leerla
+    "AUTH_COOKIE_PATH": "/",
+    "AUTH_COOKIE_SAMESITE": "Lax",
+    "TOKEN_OBTAIN_SERIALIZER": "apps.users.serializers.auth_serializers.MyTokenObtainPairSerializer",
+}
 
 LANGUAGE_CODE = "en-us"
 

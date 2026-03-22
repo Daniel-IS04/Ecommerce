@@ -1,25 +1,50 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password 
+from django.contrib.auth.password_validation import validate_password
+from django.core.validators import RegexValidator
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
+
+# Importación esencial para el nuevo Login
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 User = get_user_model()
 
+
 class RegisterSerializer(serializers.ModelSerializer):
+    # Definimos los campos con mensajes de error claros (UX para el frontend)
+    first_name = serializers.CharField(required=True)
+    last_name = serializers.CharField(required=True)
 
-    first_name = serializers.CharField(required=True, allow_blank=False,error_messages={
-        "blank": "Rellena el nombre ctmr, no pude estar vacio",
-        "required": "Rellena mierda",
-    })  
-    last_name = serializers.CharField(required=True, allow_blank=False,error_messages={
-        "blank": "Rellena el nombre ctmr, no pude estar vacio",
-        "required": "Rellena mierda",
-    })
+    email = serializers.EmailField(
+        validators=[
+            UniqueValidator(
+                queryset=User.objects.all(), message="Este email ya está registrado."
+            )
+        ]
+    )
 
-    password = serializers.CharField(write_only= True)
-    password2 = serializers.CharField(write_only= True)
+    dni = serializers.CharField(
+        validators=[
+            RegexValidator(regex=r"^\d{8}$", message="El DNI debe tener 8 dígitos."),
+            UniqueValidator(
+                queryset=User.objects.all(), message="Este DNI ya está registrado."
+            ),
+        ]
+    )
+
+    phone_number = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        validators=[
+            RegexValidator(regex=r"^\d{9}$", message="Debe ser un número de 9 dígitos.")
+        ],
+    )
+
+    password = serializers.CharField(write_only=True, validators=[validate_password])
+    password2 = serializers.CharField(write_only=True)
+
     class Meta:
         model = User
-        # es lo que se nos envio de la request
         fields = (
             "first_name",
             "last_name",
@@ -29,73 +54,39 @@ class RegisterSerializer(serializers.ModelSerializer):
             "birth_date",
             "password",
             "password2",
-            
         )
-    def validate_email(self, value):
-        email = value.lower().strip()
-        if User.objects.filter(email=email).exists():
-            raise serializers.ValidationError("Este email ya esta registrado")
-        return email
-    
-    def validate_dni(self, value: str):
-        dni = value
-        if(len(dni)== 8 and dni.isdigit()):
-            if( not User.objects.filter(dni=dni).exists()):
-                return dni    
-            raise serializers.ValidationError("Este DNI ya esta registrado")
-        raise serializers.ValidationError("Este valor no cumple con los requisitos")
 
-    def validate_password(self, value):
-        validate_password(value)
-        return value
-    
-    def validate_phone_number(self, value):
-        if value in (None, ""):
-            return value
-        
-        if not (value.isdigit() and len(value)) == 9:
-            raise serializers.ValidationError("No cumple con las condiciones de un numero peruano")
-        return value
+    def validate(self, attrs):
+        # 1. Validación de contraseñas
+        if attrs["password"] != attrs.pop("password2"):
+            raise serializers.ValidationError(
+                {"password2": "Las contraseñas no coinciden."}
+            )
+
+        # 2. Normalización profesional
+        attrs["email"] = attrs["email"].lower().strip()
+        attrs["username"] = attrs["email"]
+        return attrs
 
     def create(self, validated_data):
-        # 1) saca password2
-        validated_data.pop("password2")
+        # Usamos el manager de Django para el hashing automático de la password
+        return User.objects.create_user(**validated_data)
 
-        # 2) saca password real
-        raw_password = validated_data.pop("password")
 
-        # 3) normaliza email
-        email = validated_data["email"].lower().strip()
-        validated_data["email"] = email
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Sustituye a tu LoginSerializer manual.
+    SimpleJWT se encarga de validar email/password automáticamente.
+    """
 
-        # 4) si tu regla es username=email:
-        validated_data["username"] = email
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
 
-        # 5) crea usuario sin password plano
-        user = User(**validated_data)
-        user.set_password(raw_password)
-        user.save()
-        return user
+        # Añadimos Custom Claims (Datos extra dentro del JWT)
+        # Esto permite que el frontend lea estos datos sin pegarle a la DB
+        token["first_name"] = user.first_name
+        token["email"] = user.email
+        token["role"] = getattr(user, "role", "user")
 
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only= True)
-    
-    def validate(self, attrs):
-        email = attrs["email"].lower().strip()
-        password = attrs["password"]
-
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            raise serializers.ValidationError("Credenciales inválidas.")
-        
-        
-        if not user.is_active:
-            raise serializers.ValidationError("Usuario inactivo.")
-        
-        if not user.check_password(password):
-            raise serializers.ValidationError("Credenciales invalidas. ")
-        
-        attrs["user"] = user
-        return attrs
+        return token
