@@ -1,12 +1,20 @@
 from django.urls import path, include
 
-from .views.auth_views import RegisterView, LoginView, TokenRefreshView
+from django.urls import path
+from .views.auth_views import (
+    RegisterView,
+    LoginView,
+    CustomTokenRefreshView,
+    LogoutView,
+)
 from .views.me_views import MeView
 
+
 urlpatterns = [
-    path("register/", RegisterView.as_view()),
-    path("login/", LoginView.as_view()),
-    path("me/", MeView.as_view()),
+    path("register/", RegisterView.as_view(), name="register"),
+    path("login/", LoginView.as_view(), name="login"),
+    path("me/", MeView.as_view(), name="me"),
+    path("refresh/", CustomTokenRefreshView.as_view(), name="token_refresh"),
+    path("logout/", LogoutView.as_view(), name="logout"),
     path("peroooooooooooooooooooooadmin/", include("apps.users.urls_admin")),
-    path("refresh/", TokenRefreshView.as_view()),
 ]

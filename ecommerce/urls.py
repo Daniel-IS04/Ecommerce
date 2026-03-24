@@ -1,13 +1,38 @@
 """
 URL configuration for ecommerce project.
+"""
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
+from django.contrib import admin
+from django.urls import path, include
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularSwaggerView,
+    SpectacularRedocView,
+)
+
+# ELIMINAMOS las importaciones de SimpleJWT
+# Ya no necesitamos TokenObtainPairView ni TokenRefreshView aquí
+
+urlpatterns = [
+    # Admin
+    path("admin/", admin.site.urls),
+    # Documentación de la API (Swagger/Redoc)
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path(
+        "api/docs/",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui",
+    ),
+    path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+    # ELIMINAMOS las rutas api/token/ y api/token/refresh/
+    # Delegación a las Apps (El enrutamiento real ocurre dentro de cada app)
+    path("api/", include("apps.products.urls")),
+    # Todas tus rutas de autenticación y perfil ahora viven dentro de este include
+    # (ej. api/users/login/, api/users/refresh/, api/users/logout/, api/users/me/)
+    path("api/users/", include("apps.users.urls")),
+]
+
+'''Class-based views
     1. Add an import:  from other_app.views import Home
     2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
 Including another URLconf
@@ -44,4 +69,4 @@ urlpatterns = [
     # Apps URLs
     path('api/', include('apps.products.urls')),
     path('api/users/', include('apps.users.urls')),
-]
+]'''
