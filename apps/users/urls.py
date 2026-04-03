@@ -16,5 +16,5 @@ urlpatterns = [
     path("me/", MeView.as_view(), name="me"),
     path("refresh/", CustomTokenRefreshView.as_view(), name="token_refresh"),
     path("logout/", LogoutView.as_view(), name="logout"),
-    path("peroooooooooooooooooooooadmin/", include("apps.users.urls_admin")),
+    path("admin/", include("apps.users.urls_admin")),
 ]
